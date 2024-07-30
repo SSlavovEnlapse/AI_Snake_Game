@@ -1,0 +1,390 @@
+SNAKE.PYYYYYYYYYY
+# snake.py
+
+class Snake:
+    def __init__(self, initial_position):
+        self.body = [initial_position]  # List of tuples representing the snake's body segments
+        self.direction = (0, 1)  # Initial direction (moving right)
+        self.grow_flag = False
+
+    def set_direction(self, new_direction):
+        # Prevent 180-degree turns
+        if (new_direction[0] + self.direction[0], new_direction[1] + self.direction[1]) != (0, 0):
+            self.direction = new_direction
+
+    def move(self):
+        head_x, head_y = self.body[0]
+        new_head = (head_x + self.direction[0], head_y + self.direction[1])
+        self.body.insert(0, new_head)
+        
+        if not self.grow_flag:
+            self.body.pop()
+        else:
+            self.grow_flag = False
+
+    def grow(self):
+        self.grow_flag = True
+
+    def check_collision(self, grid_size):
+        head_x, head_y = self.body[0]
+        # Check collision with walls
+        if not (0 <= head_x < grid_size and 0 <= head_y < grid_size):
+            return True
+        # Check collision with itself
+        if (head_x, head_y) in self.body[1:]:
+            return True
+        return False
+
+
+
+GAME.PYYYYYYYYYYYYYY
+# game.py
+import random
+import numpy as np
+from snake import Snake
+from neural_network import NeuralNetwork
+from utils import calculate_distances
+
+GRID_SIZE = 20
+
+class SnakeGame:
+    def __init__(self):
+        self.snake = Snake((GRID_SIZE // 2, GRID_SIZE // 2))
+        self.food = self.place_food()
+        self.moves = 200
+        self.score = 0
+        self.neural_network = NeuralNetwork()
+
+    def place_food(self):
+        while True:
+            food_pos = (random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1))
+            if food_pos not in self.snake.body:
+                return food_pos
+
+    def update(self):
+        vision = calculate_distances(self.snake, self.food, GRID_SIZE)
+        move = self.neural_network.predict(np.array(vision).reshape(-1, 1))
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # Right, Left, Down, Up
+        self.snake.set_direction(directions[move])
+
+        self.snake.move()
+        if self.snake.check_collision(GRID_SIZE):
+            return False  # Game over
+        
+        if self.snake.body[0] == self.food:
+            self.snake.grow()
+            self.food = self.place_food()
+            self.score += 1
+            self.moves += 100
+        else:
+            self.moves -= 1
+
+        if self.moves <= 0:
+            return False  # Game over
+
+        return True  # Continue the game
+
+    def is_alive(self):
+        return self.moves > 0
+
+    def get_vision(self):
+        vision = calculate_distances(self.snake, self.food, GRID_SIZE)
+        return vision
+
+
+
+
+
+GEENTIC_ALGORITHM.PYYYYYYYYYYYYYYY
+# genetic_algorithm.py
+import random
+from neural_network import NeuralNetwork
+import numpy as np 
+from copy import deepcopy
+class GeneticAlgorithm:
+    def __init__(self, population_size=400, mutation_rate=0.05):
+        self.population_size = population_size
+        self.initial_mutation_rate = mutation_rate
+        self.mutation_rate = mutation_rate
+        self.population = [NeuralNetwork() for _ in range(population_size)]
+        self.fitness_scores = []
+
+    def evaluate_fitness(self, game_class, render=False, games_per_network=1):
+        self.fitness_scores = []
+        for network in self.population:
+            total_score = 0
+            for _ in range(games_per_network):
+                game = game_class()
+                game.neural_network = deepcopy(network)
+                while game.update():
+                    if render:
+                        pass  # Add rendering logic if needed
+                total_score += game.score
+            
+            self.fitness_scores.append(total_score / games_per_network)
+        # Normalize fitness scores
+        self.fitness_scores = np.array(self.fitness_scores)
+        self.fitness_scores = self.fitness_scores / np.sum(self.fitness_scores)
+
+    def select_parents(self):
+        return np.random.choice(self.population, size=2, p=self.fitness_scores)
+
+    def crossover(self, parent1, parent2):
+        child1, child2 = deepcopy(parent1), deepcopy(parent2)
+        for i in range(len(parent1.weights)):
+            crossover_point = random.randint(0, parent1.weights[i].shape[1] - 1)
+            # Swap weights
+            child1.weights[i][:, :crossover_point], child2.weights[i][:, :crossover_point] = \
+                deepcopy(parent2.weights[i][:, :crossover_point]), deepcopy(parent1.weights[i][:, :crossover_point])
+        return child1, child2
+
+    def mutate(self, network):
+        for i in range(len(network.weights)):
+            if random.random() < self.mutation_rate:
+                noise = np.random.randn(*network.weights[i].shape) * 0.1
+                network.weights[i] += noise
+        return network
+
+    def create_new_generation(self):
+        new_population = []
+        while len(new_population) < self.population_size:
+            parent1, parent2 = self.select_parents()
+            child1, child2 = self.crossover(parent1, parent2)
+            new_population.append(self.mutate(child1))
+            new_population.append(self.mutate(child2))
+        self.population = new_population[:self.population_size]
+
+        # Adjust mutation rate dynamically
+        progress = max(self.fitness_scores) - min(self.fitness_scores)
+        if progress < 0.05:  # If progress is low, increase mutation rate
+            self.mutation_rate = min(self.mutation_rate + 0.01, 0.3)
+        else:  # If progress is good, reset to initial mutation rate
+            self.mutation_rate = self.initial_mutation_rate
+
+
+
+
+
+MAIN.PYYYYYYYYYYYYYYY
+# main.py
+
+import pygame
+import numpy as np
+from game import SnakeGame, GRID_SIZE
+from genetic_algorithm import GeneticAlgorithm
+from visualization import display_interface
+
+# Adjust the screen dimensions for a larger viewing area.
+SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 800
+SNAKE_SIZE = SCREEN_HEIGHT // GRID_SIZE
+
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    pygame.display.set_caption('Snake AI Evolution')
+
+    gen_alg = GeneticAlgorithm()
+    generations = 10000  # Number of generations for the demonstration
+
+    highscore = 0
+
+    for generation in range(generations):
+        print(f"Generation {generation + 1}/{generations}")
+        gen_alg.evaluate_fitness(SnakeGame)
+        gen_alg.create_new_generation()
+
+        # Display the best snake of this generation
+        best_index = np.argmax(gen_alg.fitness_scores)
+        best_network = gen_alg.population[best_index]
+        game = SnakeGame()
+        game.neural_network = best_network
+
+        running = True
+        clock = pygame.time.Clock()
+
+        while running and game.update():
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+            
+            highscore = max(highscore, game.score)
+            display_interface(screen, game, best_network, generation + 1, game.score, highscore, gen_alg.mutation_rate, SNAKE_SIZE)
+            clock.tick(40)
+
+        if not running:
+            break
+
+    pygame.quit()
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+VISUALIZATION.PYYYYYYYYYYYYYYYYYYYY
+# visualization.py
+
+import pygame
+from game import GRID_SIZE
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+GRAY = (128, 128, 128)
+
+def display_game(screen, game, snake_size):
+    # Draw game grid
+    grid_width = snake_size * GRID_SIZE
+    grid_height = snake_size * GRID_SIZE
+    game_x_offset = 300  # Offset for the game grid
+    pygame.draw.rect(screen, WHITE, [game_x_offset, 0, grid_width, grid_height], 2)
+
+    # Draw snake
+    for segment in game.snake.body:
+        pygame.draw.rect(screen, WHITE, 
+                         (game_x_offset + segment[1] * snake_size, segment[0] * snake_size, snake_size, snake_size))
+    
+    # Draw food
+    pygame.draw.rect(screen, RED, 
+                     (game_x_offset + game.food[1] * snake_size, game.food[0] * snake_size, snake_size, snake_size))
+
+def display_stats(screen, generation, score, highscore, mutation_rate):
+    font = pygame.font.Font(None, 36)
+    gen_text = font.render(f"Generation: {generation}", True, WHITE)
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    highscore_text = font.render(f"High Score: {highscore}", True, WHITE)
+    mut_text = font.render(f"Mutation Rate: {mutation_rate:.1%}", True, WHITE)
+
+    screen.blit(gen_text, (10, 10))
+    screen.blit(score_text, (10, 50))
+    screen.blit(highscore_text, (10, 90))
+    screen.blit(mut_text, (10, 130))
+
+def draw_neural_network(screen, network, start_x, start_y, width, height):
+    layers = [network.layer_sizes[0]] + network.layer_sizes[1:-1] + [network.layer_sizes[-1]]
+    layer_width = width // len(layers)
+
+    node_radius = 10  # Radius of each node
+    max_nodes = max(layers)
+
+    for l, layer_size in enumerate(layers):
+        layer_x = start_x + l * layer_width + layer_width // 2
+        spacing_y = height // (layer_size + 1)
+
+        for n in range(layer_size):
+            node_y = start_y + n * spacing_y + spacing_y // 2
+            pygame.draw.circle(screen, WHITE, (layer_x, node_y), node_radius)
+
+            if l < len(layers) - 1:
+                next_layer_size = layers[l + 1]
+                next_layer_x = start_x + (l + 1) * layer_width + layer_width // 2
+                next_spacing_y = height // (next_layer_size + 1)
+
+                for nn in range(next_layer_size):
+                    next_node_y = start_y + nn * next_spacing_y + next_spacing_y // 2
+
+                    weight = network.weights[l][nn, n]
+                    color = RED if weight < 0 else BLUE
+                    pygame.draw.line(screen, color, (layer_x, node_y), (next_layer_x, next_node_y))
+
+def display_interface(screen, game, network, generation, score, highscore, mutation_rate, snake_size):
+    screen.fill(BLACK)
+    
+    # Define panel dimensions
+    panel_width = 300
+    panel_height = screen.get_height()
+    panel_x = 0
+    panel_y = 0
+
+    # Draw panel background
+    pygame.draw.rect(screen, GRAY, [panel_x, panel_y, panel_width, panel_height])
+
+    # Display neural network and stats in the panel
+    draw_neural_network(screen, network, 10, 200, panel_width - 20, panel_height - 240)
+    display_stats(screen, generation, score, highscore, mutation_rate)
+
+    # Display game grid on the right
+    display_game(screen, game, snake_size)
+    
+    pygame.display.update()
+
+
+
+
+NEURAL_NETWORK.PYYYYYYYYYYYYYYYYYYYYYYYY
+# neural_network.py
+
+import numpy as np
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+class NeuralNetwork:
+    def __init__(self, input_size=24, hidden_layer_sizes=[16, 16], output_size=4):
+        self.layer_sizes = [input_size] + hidden_layer_sizes + [output_size]
+        self.weights = [np.random.randn(y, x) for x, y in zip(self.layer_sizes[:-1], self.layer_sizes[1:])]
+        self.biases = [np.random.randn(y, 1) for y in self.layer_sizes[1:]]
+
+    def forward(self, x):
+        activation = x
+        for w, b in zip(self.weights, self.biases):
+            z = np.dot(w, activation) + b
+            activation = sigmoid(z)  # Activation function
+        return activation
+
+    def predict(self, x):
+        output = self.forward(x)
+        return np.argmax(output)  # Return the index of the maximum output (direction to move)
+
+
+
+
+
+
+
+
+
+
+UTILS.PYYYYYYYYYYYYYYYYYYYYY
+# utils.py
+
+def normalize(x, max_value):
+    return x / max_value if max_value else 0
+
+def calculate_distances(snake, food, grid_size):
+    head_x, head_y = snake.body[0]
+    directions = [
+        (-1, 0), (1, 0), (0, -1), (0, 1),  # N, S, W, E
+        (-1, -1), (-1, 1), (1, -1), (1, 1)  # NW, NE, SW, SE
+    ]
+
+    vision = []
+    for d in directions:
+        dist_food, dist_body, dist_wall = 0, 0, 0
+        step = 1
+        while True:
+            x, y = head_x + d[0] * step, head_y + d[1] * step
+            if not (0 <= x < grid_size and 0 <= y < grid_size):
+                dist_wall = step
+                break
+            if (x, y) == food:
+                dist_food = step
+            if (x, y) in snake.body[1:]:
+                dist_body = step
+                break
+            step += 1
+        vision.extend([normalize(dist_food, grid_size), normalize(dist_body, grid_size), normalize(dist_wall, grid_size)])
+    return vision
