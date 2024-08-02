@@ -6,17 +6,18 @@ from visualization import display_interface
 from button_f import Button_b  # Import the button class
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, SNAKE_SIZE
 import asyncio
+import logging
 
-# Constants
 increase_mut_button = pygame.Rect(340, 85, 20, 20)
 decrease_mut_button = pygame.Rect(365, 85, 20, 20)
 
 async def visualize_snake(screen, gen_alg, network, generation, snake_size, highscore, human_control=False):
     game = SnakeGame()
-    game.neural_network = network 
+    game.neural_network = network
 
     running = True
     clock = pygame.time.Clock()
+   
 
     while running and game.update():
         for event in pygame.event.get():
@@ -47,6 +48,10 @@ async def visualize_snake(screen, gen_alg, network, generation, snake_size, high
 
         score = game.score
         highscore = max(highscore, game.score)
+        
+        head_pos = game.snake.body[0]
+        #logging.debug(f"Best snake head position: {head_pos}, direction: {game.snake.direction}")
+
         display_interface(screen, game, network, generation + 1, score, highscore, gen_alg.mutation_rate, snake_size)
         clock.tick(15)  # Adjust this value to change the snake's speed
         await asyncio.sleep(0)  # Yield control to the event loop
@@ -64,6 +69,8 @@ async def run_genetic_algorithm(gen_alg, generations, screen):
         best_index = np.argmax(gen_alg.fitness_scores)
         best_network = gen_alg.population[best_index]
         
+        #logging.debug(f"Generation {generation + 1}: Best fitness score: {gen_alg.fitness_scores[best_index]} at index {best_index}")
+
         highscore = await visualize_snake(screen, gen_alg, best_network, generation, SNAKE_SIZE, highscore, human_control=False)
 
 async def main():
@@ -71,10 +78,9 @@ async def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption('Snake AI Evolution')
 
-    # Create buttons after initializing Pygame
     global save_button, load_button, human_control_button
     save_button = Button_b(149, 15, 100, 30, "Save")
-    load_button = Button_b(249, 15, 100, 30, "Load")
+    load_button = Button_b(249, 15, 30, 100, "Load")
     human_control_button = Button_b(449, 15, 150, 30, "Human Control")
     
     gen_alg = GeneticAlgorithm(population_size=2000)  # Increase the population size

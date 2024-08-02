@@ -6,7 +6,8 @@ from neural_network import NeuralNetwork
 import asyncio
 
 # Configure logging
-#logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+#logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
+
 
 async def evaluate_network(network, game_class, games_per_network, render=False):
     total_score = 0
@@ -26,48 +27,48 @@ async def evaluate_network(network, game_class, games_per_network, render=False)
     #logging.debug(f"Average fitness: {avg_score}")
     return avg_score
 
+
 class GeneticAlgorithm:
-    def __init__(self, population_size=500, mutation_rate=0.15, batch_size=50, elitism_rate=0.05):
+    def __init__(self, population_size=500, mutation_rate=0.1, batch_size=50, elitism_rate=0.05, max_generations=500):
         self.population_size = population_size
-        self.mutation_rate = mutation_rate  # Set a fixed mutation rate to 15%
+        self.mutation_rate = mutation_rate
         self.batch_size = batch_size
         self.elitism_rate = elitism_rate
         self.population = [NeuralNetwork() for _ in range(population_size)]
         self.fitness_scores = []
-        #logging.debug("Initialized GeneticAlgorithm")
+        self.generation = 0
+        self.max_generations = max_generations
 
     async def evaluate_fitness(self, game_class, games_per_network=1):
         self.fitness_scores = []
-        
+
         # Divide population into batches
-        batches = [self.population[i:i+self.batch_size] for i in range(0, self.population_size, self.batch_size)]
-        
+        batches = [self.population[i:i + self.batch_size] for i in range(0, self.population_size, self.batch_size)]
+
         for batch in batches:
             tasks = [asyncio.create_task(evaluate_network(network, game_class, games_per_network, render=False)) for network in batch]
             results = await asyncio.gather(*tasks)
             self.fitness_scores.extend(results)
-        
-        # Normalize fitness scores
-        self.fitness_scores = np.array(self.fitness_scores)
-        self.fitness_scores = self.fitness_scores / np.sum(self.fitness_scores)
-        #logging.debug(f"Fitness scores: {self.fitness_scores}")
 
-    def select_parents(self):
-        # Using fitness-proportionate selection (roulette wheel)
-        cumulative_fitness = np.cumsum(self.fitness_scores)
-        random_select = random.random() * cumulative_fitness[-1]
-        parent_idx = np.searchsorted(cumulative_fitness, random_select)
-        selected_parent = self.population[parent_idx]
-        #logging.debug(f"Selected parent at index: {parent_idx}")
-        return selected_parent
+        self.fitness_scores = np.array(self.fitness_scores)
+        if np.sum(self.fitness_scores) > 0:
+            self.fitness_scores = self.fitness_scores / np.sum(self.fitness_scores)
+        else:
+            logging.warning("Sum of fitness scores is zero or negative. Check fitness calculation.")
+
+    def tournament_selection(self, tournament_size=30):
+        # Randomly select a subset of individuals for the tournament
+        tournament = random.sample(list(zip(self.population, self.fitness_scores)), tournament_size)
+        # Select the best individual in the tournament
+        best_individual = max(tournament, key=lambda x: x[1])[0]
+        return best_individual
 
     def crossover(self, parent1, parent2):
         child1, child2 = deepcopy(parent1), deepcopy(parent2)
         for i in range(len(parent1.weights)):
-           crossover_point = random.randint(0, parent1.weights[i].shape[1] - 1)
-           child1.weights[i][:, :crossover_point], child2.weights[i][:, :crossover_point] = \
+            crossover_point = random.randint(0, parent1.weights[i].shape[1] - 1)
+            child1.weights[i][:, :crossover_point], child2.weights[i][:, :crossover_point] = \
                 deepcopy(parent2.weights[i][:, :crossover_point]), deepcopy(parent1.weights[i][:, :crossover_point])
-       #logging.debug("Performed crossover")
         return child1, child2
 
     def mutate(self, network):
@@ -75,7 +76,6 @@ class GeneticAlgorithm:
             if random.random() < self.mutation_rate:
                 noise = np.random.randn(*network.weights[i].shape) * 0.1
                 network.weights[i] += noise
-        #logging.debug("Mutated network")
         return network
 
     def create_new_generation(self):
@@ -88,11 +88,12 @@ class GeneticAlgorithm:
         new_population.extend(elites)
 
         while len(new_population) < self.population_size:
-            parent1, parent2 = self.select_parents(), self.select_parents()
+            parent1 = self.tournament_selection()
+            parent2 = self.tournament_selection()
             child1, child2 = self.crossover(parent1, parent2)
             new_population.append(self.mutate(child1))
             if len(new_population) < self.population_size:
                 new_population.append(self.mutate(child2))
 
         self.population = new_population[:self.population_size]
-        #logging.debug("Created new generation")
+        self.generation += 1

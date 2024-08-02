@@ -12,17 +12,15 @@ class SnakeGame:
     def __init__(self, render=True):
         initial_position = (GRID_SIZE // 2, GRID_SIZE // 2)
         self.snake = Snake(initial_position)
-        self.food = initial_position  # Place the first food at the snake's head position
+        self.food = self.place_food()  # Place the first food at a random position
         self.score = 0
         self.neural_network = None
-        self.render = render  # Add render flag
-        #logging.debug("Initialized SnakeGame")
+        self.render = render
 
     def place_food(self):
         while True:
             food_pos = (random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1))
             if food_pos not in self.snake.body:
-                #logging.debug(f"Placed food at {food_pos}")
                 return food_pos
 
     def update(self):
@@ -32,21 +30,25 @@ class SnakeGame:
             move = np.argmax(prediction)
             directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # Right, Left, Down, Up
 
-            #logging.debug(f"Neural Network Prediction: {prediction.ravel()}")
-            #logging.debug(f"Chosen Move: {directions[move]} based on max index {move}")
+            current_direction = self.snake.direction
+            new_direction = directions[move]
 
-            self.snake.set_direction(directions[move])
+            # Ensure the snake does not make a 180-degree turn
+            if (current_direction == (0, 1) and new_direction != (0, -1)) or \
+               (current_direction == (0, -1) and new_direction != (0, 1)) or \
+               (current_direction == (1, 0) and new_direction != (-1, 0)) or \
+               (current_direction == (-1, 0) and new_direction != (1, 0)):
+
+                self.snake.set_direction(new_direction)
 
         self.snake.move()
         if self.snake.check_collision(GRID_SIZE) or self.snake.moves <= 0:
-            #logging.debug("Game over")
             return False  # Game over
         
         if self.snake.body[0] == self.food:
             self.snake.grow()
             self.food = self.place_food()
             self.score += 1
-            #logging.debug(f"Ate food, new score: {self.score}")
 
         return True  # Continue the game
 
