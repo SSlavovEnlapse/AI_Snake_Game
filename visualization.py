@@ -1,5 +1,3 @@
-# visualization.py
-
 import pygame
 from constants import GRID_SIZE, SNAKE_SIZE, WHITE, BLACK, GREEN, RED, BLUE, GRAY
 
@@ -12,11 +10,11 @@ def display_game(screen, game, snake_size):
 
     # Draw snake
     for segment in game.snake.body:
-        pygame.draw.rect(screen, WHITE, 
+        pygame.draw.rect(screen, WHITE,
                          (game_x_offset + segment[1] * snake_size, segment[0] * snake_size, snake_size, snake_size))
-    
+
     # Draw food
-    pygame.draw.rect(screen, RED, 
+    pygame.draw.rect(screen, RED,
                      (game_x_offset + game.food[1] * snake_size, game.food[0] * snake_size, snake_size, snake_size))
 
 def display_stats(screen, generation, score, highscore, mutation_rate):
@@ -53,7 +51,6 @@ def draw_neural_network(screen, network, start_x, start_y, width, height):
 
                 for nn in range(next_layer_size):
                     next_node_y = start_y + nn * next_spacing_y + next_spacing_y // 2
-
                     weight = network.weights[l][nn, n]
                     color = RED if weight < 0 else BLUE
                     pygame.draw.line(screen, color, (layer_x, node_y), (next_layer_x, next_node_y))

@@ -8,7 +8,6 @@ import asyncio
 # Configure logging
 #logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
 
-
 async def evaluate_network(network, game_class, games_per_network, render=False):
     total_score = 0
     for _ in range(games_per_network):
@@ -26,7 +25,6 @@ async def evaluate_network(network, game_class, games_per_network, render=False)
     avg_score = total_score / games_per_network if games_per_network else 1
     #logging.debug(f"Average fitness: {avg_score}")
     return avg_score
-
 
 class GeneticAlgorithm:
     def __init__(self, population_size=500, mutation_rate=0.1, batch_size=50, elitism_rate=0.05, max_generations=500):

@@ -3,21 +3,38 @@ import numpy as np
 from game import SnakeGame
 from genetic_algorithm import GeneticAlgorithm
 from visualization import display_interface
-from button_f import Button_b  # Import the button class
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, SNAKE_SIZE
 import asyncio
-import logging
+import tkinter as tk
+from tkinter import filedialog
+import os
+from neural_network import NeuralNetwork
+
+# Constants
+SAVE_DIR = r"C:/Users/sslavov/Desktop/SnakeAI-greeviau/models"
 
 increase_mut_button = pygame.Rect(340, 85, 20, 20)
 decrease_mut_button = pygame.Rect(365, 85, 20, 20)
 
-async def visualize_snake(screen, gen_alg, network, generation, snake_size, highscore, human_control=False):
+def save_model(gen_alg, save_path):
+    best_index = np.argmax(gen_alg.fitness_scores)
+    best_network = gen_alg.population[best_index]
+    best_network.save(save_path)
+
+def load_model(gen_alg, load_path):
+    new_population = []
+    for _ in range(gen_alg.population_size):
+        network = NeuralNetwork()
+        network.load(load_path)
+        new_population.append(network)
+    gen_alg.population = new_population
+
+async def visualize_snake(screen, gen_alg, network, generation, snake_size, highscore, save_path):
     game = SnakeGame()
     game.neural_network = network
 
     running = True
     clock = pygame.time.Clock()
-   
 
     while running and game.update():
         for event in pygame.event.get():
@@ -28,37 +45,18 @@ async def visualize_snake(screen, gen_alg, network, generation, snake_size, high
                     gen_alg.mutation_rate *= 2
                 elif decrease_mut_button.collidepoint(event.pos):
                     gen_alg.mutation_rate /= 2
-                elif save_button.is_clicked(event):
-                    pass
-                elif load_button.is_clicked(event):
-                    pass
-                elif human_control_button.is_clicked(event):
-                    human_control = not human_control  # Toggle human control mode
-
-        if human_control:
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_UP]:
-                game.snake.set_direction((-1, 0))
-            if keys[pygame.K_DOWN]:
-                game.snake.set_direction((1, 0))
-            if keys[pygame.K_LEFT]:
-                game.snake.set_direction((0, -1))
-            if keys[pygame.K_RIGHT]:
-                game.snake.set_direction((0, 1))
 
         score = game.score
         highscore = max(highscore, game.score)
         
-        head_pos = game.snake.body[0]
-        #logging.debug(f"Best snake head position: {head_pos}, direction: {game.snake.direction}")
-
         display_interface(screen, game, network, generation + 1, score, highscore, gen_alg.mutation_rate, snake_size)
+
         clock.tick(15)  # Adjust this value to change the snake's speed
         await asyncio.sleep(0)  # Yield control to the event loop
 
     return highscore
 
-async def run_genetic_algorithm(gen_alg, generations, screen):
+async def run_genetic_algorithm(gen_alg, generations, screen, save_folder, game_number):
     highscore = 0
 
     for generation in range(generations):
@@ -69,26 +67,54 @@ async def run_genetic_algorithm(gen_alg, generations, screen):
         best_index = np.argmax(gen_alg.fitness_scores)
         best_network = gen_alg.population[best_index]
         
-        #logging.debug(f"Generation {generation + 1}: Best fitness score: {gen_alg.fitness_scores[best_index]} at index {best_index}")
+        # Autosave the model after each generation
+        save_path = os.path.join(save_folder, f"game{game_number}_progress.json")
+        save_model(gen_alg, save_path)
+        
+        highscore = await visualize_snake(screen, gen_alg, best_network, generation, SNAKE_SIZE, highscore, save_path)
 
-        highscore = await visualize_snake(screen, gen_alg, best_network, generation, SNAKE_SIZE, highscore, human_control=False)
+    return game_number
+
+def prompt_load_file():
+    root = tk.Tk()
+    root.withdraw()
+    load_path = filedialog.askopenfilename(title="Select Save File", filetypes=[("JSON files", "*.json"), ("All files", "*.*")])
+    return load_path
+
+def get_next_game_number(save_folder):
+    existing_files = os.listdir(save_folder)
+    game_numbers = [int(f.split('_')[0][4:]) for f in existing_files if f.startswith('game') and f.endswith('_progress.json')]
+    return max(game_numbers, default=0) + 1
 
 async def main():
     pygame.init()  # Initialize Pygame here
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption('Snake AI Evolution')
 
-    global save_button, load_button, human_control_button
-    save_button = Button_b(149, 15, 100, 30, "Save")
-    load_button = Button_b(249, 15, 30, 100, "Load")
-    human_control_button = Button_b(449, 15, 150, 30, "Human Control")
+    # Ensure the save directory exists
+    if not os.path.exists(SAVE_DIR):
+        os.makedirs(SAVE_DIR)
+
+    # Determine the next game number
+    game_number = get_next_game_number(SAVE_DIR)
+    
+    # Prompt the user to load a previous save file
+    load_path = prompt_load_file()
+    
+    global increase_mut_button, decrease_mut_button
     
     gen_alg = GeneticAlgorithm(population_size=2000)  # Increase the population size
     generations = 500  # Number of generations for the demonstration
 
-    await run_genetic_algorithm(gen_alg, generations, screen)
+    if load_path:
+        load_model(gen_alg, load_path)
+    
+    await run_genetic_algorithm(gen_alg, generations, screen, SAVE_DIR, game_number)
 
     pygame.quit()
+
+    # Display the save folder location on exit
+    print(f"Progress saved in: {SAVE_DIR}")
 
 if __name__ == '__main__':
     asyncio.run(main())

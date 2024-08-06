@@ -1,4 +1,7 @@
+# neural_network.py
+
 import numpy as np
+import json
 
 def relu(x):
     return np.maximum(0, x)
@@ -19,3 +22,17 @@ class NeuralNetwork:
     def predict(self, x):
         output = self.forward(x)
         return np.argmax(output)
+
+    def save(self, filename):
+        model_data = {
+            'weights': [w.tolist() for w in self.weights],
+            'biases': [b.tolist() for b in self.biases]
+        }
+        with open(filename, 'w') as f:
+            json.dump(model_data, f)
+
+    def load(self, filename):
+        with open(filename, 'r') as f:
+            model_data = json.load(f)
+        self.weights = [np.array(w) for w in model_data['weights']]
+        self.biases = [np.array(b) for b in model_data['biases']]
