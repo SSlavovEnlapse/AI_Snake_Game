@@ -11,7 +11,7 @@ import os
 from neural_network import NeuralNetwork
 
 # Constants
-SAVE_DIR = r"C:/Users/sslavov/Desktop/SnakeAI-greeviau/models"
+SAVE_DIR = r"../models"
 
 increase_mut_button = pygame.Rect(340, 85, 20, 20)
 decrease_mut_button = pygame.Rect(365, 85, 20, 20)
