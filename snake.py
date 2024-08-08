@@ -3,7 +3,7 @@ import random
 from constants import GRID_SIZE
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+#logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Snake:
     def __init__(self, initial_position):
@@ -102,7 +102,7 @@ class Snake:
             self.fitness *= 2 ** 10
             self.fitness *= (self.score - 9)
 
-        self.fitness -= self.loop_penalty * 50
+        self.fitness -= self.loop_penalty * 90
 
         head_x, head_y = self.body[0]
         food_x, food_y = food_position

@@ -4,14 +4,14 @@ import random
 from copy import deepcopy
 from neural_network import NeuralNetwork
 import asyncio
-
+from constants import GRID_SIZE
 # Configure logging
 #logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
 
-async def evaluate_network(network, game_class, games_per_network, render=False):
+async def evaluate_network(network, game_class, games_per_network, food_positions, render=False):
     total_score = 0
     for _ in range(games_per_network):
-        game = game_class(render=render)
+        game = game_class(render=render, food_positions=food_positions)
         game.neural_network = deepcopy(network)
 
         while game.update():
@@ -20,14 +20,12 @@ async def evaluate_network(network, game_class, games_per_network, render=False)
         fitness = game.snake.calculate_fitness(game.food)
         if fitness is not None:
             total_score += fitness
-            #logging.debug(f"Fitness for this game: {fitness}")
 
     avg_score = total_score / games_per_network if games_per_network else 1
-    #logging.debug(f"Average fitness: {avg_score}")
     return avg_score
 
 class GeneticAlgorithm:
-    def __init__(self, population_size=500, mutation_rate=0.1, batch_size=50, elitism_rate=0.05, max_generations=500):
+    def __init__(self, population_size=500, mutation_rate=0.15, batch_size=50, elitism_rate=0.05, max_generations=500):
         self.population_size = population_size
         self.mutation_rate = mutation_rate
         self.batch_size = batch_size
@@ -36,15 +34,26 @@ class GeneticAlgorithm:
         self.fitness_scores = []
         self.generation = 0
         self.max_generations = max_generations
+        self.food_positions = []
+
+    def generate_food_positions(self, num_positions, grid_size):
+        self.food_positions.clear()
+        for _ in range(num_positions):
+            while True:
+                food_pos = (random.randint(0, grid_size - 1), random.randint(0, grid_size - 1))
+                if food_pos not in self.food_positions:
+                    self.food_positions.append(food_pos)
+                    break
 
     async def evaluate_fitness(self, game_class, games_per_network=1):
         self.fitness_scores = []
+        self.generate_food_positions(100, GRID_SIZE)  # Generate 100 food positions per generation
 
         # Divide population into batches
         batches = [self.population[i:i + self.batch_size] for i in range(0, self.population_size, self.batch_size)]
 
         for batch in batches:
-            tasks = [asyncio.create_task(evaluate_network(network, game_class, games_per_network, render=False)) for network in batch]
+            tasks = [asyncio.create_task(evaluate_network(network, game_class, games_per_network, self.food_positions, render=False)) for network in batch]
             results = await asyncio.gather(*tasks)
             self.fitness_scores.extend(results)
 
