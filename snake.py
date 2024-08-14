@@ -102,18 +102,18 @@ class Snake:
             self.fitness *= 2 ** 10
             self.fitness *= (self.score - 9)
 
-        self.fitness -= self.loop_penalty * 90
+        self.fitness -= self.loop_penalty * 300
 
         head_x, head_y = self.body[0]
         food_x, food_y = food_position
         distance_to_food = abs(head_x - food_x) + abs(head_y - food_y)
 
-        self.fitness += (1 / (distance_to_food + 1)) * 500
-        self.fitness += len(self.visited_positions) * 50
+        self.fitness += (1 / (distance_to_food + 1)) * 1000
+        self.fitness += len(self.visited_positions) * 500
         self.fitness += self.score * 5000
 
         if self.check_collision(GRID_SIZE):
-            self.fitness -= 200
+            self.fitness -= 2000
 
         return self.fitness
 

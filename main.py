@@ -11,7 +11,7 @@ import os
 from neural_network import NeuralNetwork
 
 # Constants
-SAVE_DIR = r"../models"
+SAVE_DIR = r"C:/Users/user/Desktop/AI_Snake/models"
 
 increase_mut_button = pygame.Rect(340, 85, 20, 20)
 decrease_mut_button = pygame.Rect(365, 85, 20, 20)
@@ -42,9 +42,9 @@ async def visualize_snake(screen, gen_alg, network, generation, snake_size, high
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if increase_mut_button.collidepoint(event.pos):
-                    gen_alg.mutation_rate *= 2
+                    gen_alg.mutation_rate *= 1.1  # Adjust mutation rate dynamically
                 elif decrease_mut_button.collidepoint(event.pos):
-                    gen_alg.mutation_rate /= 2
+                    gen_alg.mutation_rate /= 1.1
 
         score = game.score
         highscore = max(highscore, game.score)
@@ -103,8 +103,8 @@ async def main():
     
     global increase_mut_button, decrease_mut_button
     
-    gen_alg = GeneticAlgorithm(population_size=2000)  # Increase the population size
-    generations = 500  # Number of generations for the demonstration
+    gen_alg = GeneticAlgorithm(population_size=3000, mutation_rate=0.2, batch_size=100, elitism_rate=0.15, max_generations=5000)  # Updated parameters
+    generations = 5000  # Number of generations for the demonstration
 
     if load_path:
         load_model(gen_alg, load_path)

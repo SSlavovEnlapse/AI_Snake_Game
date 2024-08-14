@@ -30,27 +30,27 @@ def display_stats(screen, generation, score, highscore, mutation_rate):
     screen.blit(mut_text, (10, 130))
 
 def draw_neural_network(screen, network, start_x, start_y, width, height):
-    layers = [network.layer_sizes[0]] + network.layer_sizes[1:-1] + [network.layer_sizes[-1]]
-    layer_width = width // len(layers)
+    layers = network.layer_sizes
+    layer_width = width // (len(layers) - 1)
 
     node_radius = 10  # Radius of each node
     max_nodes = max(layers)
 
     for l, layer_size in enumerate(layers):
-        layer_x = start_x + l * layer_width + layer_width // 2
+        layer_x = start_x + l * layer_width
         spacing_y = height // (layer_size + 1)
 
         for n in range(layer_size):
-            node_y = start_y + n * spacing_y + spacing_y // 2
+            node_y = start_y + (n + 1) * spacing_y
             pygame.draw.circle(screen, WHITE, (layer_x, node_y), node_radius)
 
             if l < len(layers) - 1:
                 next_layer_size = layers[l + 1]
-                next_layer_x = start_x + (l + 1) * layer_width + layer_width // 2
+                next_layer_x = start_x + (l + 1) * layer_width
                 next_spacing_y = height // (next_layer_size + 1)
 
                 for nn in range(next_layer_size):
-                    next_node_y = start_y + nn * next_spacing_y + next_spacing_y // 2
+                    next_node_y = start_y + (nn + 1) * next_spacing_y
                     weight = network.weights[l][nn, n]
                     color = RED if weight < 0 else BLUE
                     pygame.draw.line(screen, color, (layer_x, node_y), (next_layer_x, next_node_y))

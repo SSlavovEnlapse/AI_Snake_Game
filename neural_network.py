@@ -1,5 +1,3 @@
-# neural_network.py
-
 import numpy as np
 import json
 
@@ -7,7 +5,7 @@ def relu(x):
     return np.maximum(0, x)
 
 class NeuralNetwork:
-    def __init__(self, input_size=24, hidden_layer_sizes=[16, 16], output_size=4):
+    def __init__(self, input_size=24, hidden_layer_sizes=[32, 32], output_size=4):
         self.layer_sizes = [input_size] + hidden_layer_sizes + [output_size]
         self.weights = [np.random.randn(y, x) for x, y in zip(self.layer_sizes[:-1], self.layer_sizes[1:])]
         self.biases = [np.random.randn(y, 1) for y in self.layer_sizes[1:]]
