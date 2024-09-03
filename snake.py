@@ -102,7 +102,8 @@ class Snake:
             self.fitness *= 2 ** 10
             self.fitness *= (self.score - 9)
 
-        self.fitness -= self.loop_penalty * 300
+        # Existing penalties
+        self.fitness -= self.loop_penalty * 500
 
         head_x, head_y = self.body[0]
         food_x, food_y = food_position
@@ -112,10 +113,35 @@ class Snake:
         self.fitness += len(self.visited_positions) * 500
         self.fitness += self.score * 5000
 
+        ''' # Additional penalties and rewards
+        self.fitness += self.rewards_for_pattern_adherence()'''
+
         if self.check_collision(GRID_SIZE):
             self.fitness -= 2000
 
         return self.fitness
+
+    '''def rewards_for_pattern_adherence(self):
+        reward = 0
+        head_x, head_y = self.body[0]
+
+        # Penalize for being too close to the borders (except in valid paths)
+        if head_x == 0 or head_x == GRID_SIZE - 1 or head_y == 0 or head_y == GRID_SIZE - 1:
+            reward -= 30
+
+        # Reward for following a balanced distance path
+        for segment in self.body:
+            if 1 <= segment[0] < GRID_SIZE - 1 and 1 <= segment[1] < GRID_SIZE - 1:
+                reward += 35
+
+        # Reward for minimal turns
+        if len(self.body) > 2:
+            prev_direction = (self.body[0][0] - self.body[1][0], self.body[0][1] - self.body[1][1])
+            curr_direction = (self.body[1][0] - self.body[2][0], self.body[1][1] - self.body[2][1])
+            if prev_direction == curr_direction:
+                reward += 10
+
+        return reward'''
 
     def replay_move(self, food):
         self.lifetime += 1

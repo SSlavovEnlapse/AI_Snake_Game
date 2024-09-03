@@ -29,6 +29,16 @@ def display_stats(screen, generation, score, highscore, mutation_rate):
     screen.blit(highscore_text, (10, 90))
     screen.blit(mut_text, (10, 130))
 
+    # Draw the buttons for mutation rate adjustment
+    pygame.draw.rect(screen, WHITE, (10, 170, 50, 30))
+    pygame.draw.rect(screen, WHITE, (70, 170, 50, 30))
+
+    incre_button_text = font.render("+", True, BLACK)
+    decre_button_text = font.render("-", True, BLACK)
+
+    screen.blit(incre_button_text, (25, 175))
+    screen.blit(decre_button_text, (85, 175))
+
 def draw_neural_network(screen, network, start_x, start_y, width, height):
     layers = network.layer_sizes
     layer_width = width // (len(layers) - 1)

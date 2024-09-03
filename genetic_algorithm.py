@@ -54,7 +54,7 @@ class GeneticAlgorithm:
         else:
             logging.warning("Sum of fitness scores is zero or negative. Check fitness calculation.")
 
-    def tournament_selection(self, tournament_size=50):  # Increased tournament size
+    def tournament_selection(self, tournament_size=75):  # Increased tournament size
         tournament = random.sample(list(zip(self.population, self.fitness_scores)), tournament_size)
         best_individual = max(tournament, key=lambda x: x[1])[0]
         return best_individual
